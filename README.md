@@ -32,6 +32,22 @@ python plot_charts.py --data data/sample_data.csv --output output
 
 图表会自动调整纵轴范围，保证数值标注完整可见，并把相邻数据差异直观呈现出来。
 
+## 万用表电压数据
+
+Keysight 34410A 等仪器导出的 Excel/CSV 可以直接用专用脚本绘图，微小变化会被放大到容易看清的程度：
+
+```bash
+python plot_voltage.py --input "8.12，E1 0.xlsx" --label "E1 0"
+```
+
+运行后会生成：
+
+- `output/voltage_trend.png`：完整电压趋势，叠加 60 秒平均线
+- `output/voltage_deviation_mv.png`：相对起始值的毫伏变化
+- `output/voltage_minute_average.png`：每分钟平均电压及波动范围
+
+仓库内附带 `data/sample_voltage_minute.csv` 示例数据，可先跑一遍熟悉流程。
+
 ## 后续
 
-拿到真实数据和参考图后，会按目标图例调整颜色、布局、标注和图表类型，并同步更新到本仓库。
+之后会根据参考图进一步调整颜色、布局、标注和图表类型，并同步更新到本仓库。
