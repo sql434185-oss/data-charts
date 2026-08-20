@@ -40,7 +40,13 @@ Keysight 34410A 等仪器导出的 Excel/CSV 可以直接用专用脚本绘图�
 python plot_voltage.py --input "8.12，E1 0.xlsx" --label "E1 0"
 ```
 
-运行后会生成：
+多个文件可以一次批量出图，每个文件会生成带标签前缀的独立图表：
+
+```bash
+python plot_voltage.py --input "E1 0.xlsx" "E1 1.xlsx" --label "E1 0" "E1 1"
+```
+
+单文件运行后会生成：
 
 - `output/voltage_trend.png`：完整电压趋势，叠加 60 秒平均线
 - `output/voltage_deviation_mv.png`：相对起始值的毫伏变化

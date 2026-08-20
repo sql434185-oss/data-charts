@@ -161,28 +161,55 @@ def draw_minute_chart(df: pd.DataFrame, output: Path, label: str):
     plt.close(fig)
 
 
+def sanitize_label(label: str) -> str:
+    safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in label)
+    return safe.strip("_") or "series"
+
+
 def main():
     parser = argparse.ArgumentParser(description="Plot Keysight voltage logging data")
-    parser.add_argument("--input", type=Path, required=True, help="Excel or CSV file")
+    parser.add_argument(
+        "--input",
+        type=Path,
+        nargs="+",
+        required=True,
+        help="One or more Excel/CSV files",
+    )
     parser.add_argument("--output", type=Path, default=Path("output"))
-    parser.add_argument("--label", default="Channel 1")
+    parser.add_argument(
+        "--label",
+        nargs="*",
+        default=[],
+        help="Optional labels, one per input file",
+    )
     args = parser.parse_args()
 
-    df = load_input(args.input)
+    if args.label and len(args.label) != len(args.input):
+        parser.error("--label 数量必须和 --input 数量一致")
+
     args.output.mkdir(parents=True, exist_ok=True)
+    multi = len(args.input) > 1
 
-    series = df.set_index(TIME_COL)[VOLT_COL]
-    duration_min = (series.index.max() - series.index.min()).total_seconds() / 60
-    change_mv = (series.iloc[-1] - series.iloc[0]) * 1000
-    print(f"Samples: {len(df)}")
-    print(f"Duration: {duration_min:.2f} min")
-    print(f"Start: {series.iloc[0]:.6f} V | End: {series.iloc[-1]:.6f} V")
-    print(f"Total change: {change_mv:+.3f} mV")
+    for index, input_path in enumerate(args.input):
+        label = args.label[index] if args.label else input_path.stem
+        df = load_input(input_path)
 
-    draw_trend_chart(df, args.output / "voltage_trend.png", args.label)
-    draw_deviation_chart(df, args.output / "voltage_deviation_mv.png", args.label)
-    draw_minute_chart(df, args.output / "voltage_minute_average.png", args.label)
-    print("Charts written to", args.output.resolve())
+        series = df.set_index(TIME_COL)[VOLT_COL]
+        duration_min = (series.index.max() - series.index.min()).total_seconds() / 60
+        change_mv = (series.iloc[-1] - series.iloc[0]) * 1000
+        print(f"\n{label}: {input_path}")
+        print(f"Samples: {len(df)}")
+        print(f"Duration: {duration_min:.2f} min")
+        print(f"Start: {series.iloc[0]:.6f} V | End: {series.iloc[-1]:.6f} V")
+        print(f"Total change: {change_mv:+.3f} mV")
+
+        prefix = sanitize_label(label)
+        suffix = f"{prefix}_" if multi else ""
+        draw_trend_chart(df, args.output / f"{suffix}voltage_trend.png", label)
+        draw_deviation_chart(df, args.output / f"{suffix}voltage_deviation_mv.png", label)
+        draw_minute_chart(df, args.output / f"{suffix}voltage_minute_average.png", label)
+
+    print("\nCharts written to", args.output.resolve())
 
 
 if __name__ == "__main__":
