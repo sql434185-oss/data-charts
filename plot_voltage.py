@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import pandas as pd
 
 
@@ -161,6 +162,28 @@ def draw_minute_chart(df: pd.DataFrame, output: Path, label: str):
     plt.close(fig)
 
 
+def draw_reference_chart(df: pd.DataFrame, output: Path, label: str):
+    series = df.set_index(TIME_COL)[VOLT_COL]
+    pad = (series.max() - series.min()) * 0.10
+
+    fig, ax = plt.subplots(figsize=(4.8, 4.0))
+    ax.plot(series.index, series.values, color="black", linewidth=0.9)
+    ax.set_ylim(series.min() - pad, series.max() + pad)
+    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.4f"))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=4))
+    ax.tick_params(labelsize=9)
+    ax.set_xlabel("Time", fontsize=9)
+    ax.set_ylabel("Voltage (V)", fontsize=9)
+    if label:
+        ax.set_title(label, fontsize=10)
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(output, dpi=150)
+    plt.close(fig)
+
+
 def sanitize_label(label: str) -> str:
     safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in label)
     return safe.strip("_") or "series"
@@ -208,6 +231,7 @@ def main():
         draw_trend_chart(df, args.output / f"{suffix}voltage_trend.png", label)
         draw_deviation_chart(df, args.output / f"{suffix}voltage_deviation_mv.png", label)
         draw_minute_chart(df, args.output / f"{suffix}voltage_minute_average.png", label)
+        draw_reference_chart(df, args.output / f"{suffix}voltage_line.png", label)
 
     print("\nCharts written to", args.output.resolve())
 

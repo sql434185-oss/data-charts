@@ -51,6 +51,7 @@ python plot_voltage.py --input "E1 0.xlsx" "E1 1.xlsx" --label "E1 0" "E1 1"
 - `output/voltage_trend.png`：完整电压趋势，叠加 60 秒平均线
 - `output/voltage_deviation_mv.png`：相对起始值的毫伏变化
 - `output/voltage_minute_average.png`：每分钟平均电压及波动范围
+- `output/voltage_line.png`：黑白参考样式折线图，突出电压下降趋势
 
 仓库内附带 `data/sample_voltage_minute.csv` 示例数据，可先跑一遍熟悉流程。
 
