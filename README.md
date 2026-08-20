@@ -55,6 +55,41 @@ python plot_voltage.py --input "E1 0.xlsx" "E1 1.xlsx" --label "E1 0" "E1 1"
 
 仓库内附带 `data/sample_voltage_minute.csv` 示例数据，可先跑一遍熟悉流程。
 
-## 后续
+## 在另一台电脑上运行（VSCode）
 
-之后会根据参考图进一步调整颜色、布局、标注和图表类型，并同步更新到本仓库。
+1. 安装 Python 3.10 或更高版本，安装时勾选 `Add Python to PATH`。
+2. 获取项目源码：
+   - 在 GitHub 仓库页面点击绿色 `Code` 按钮，选择 `Download ZIP` 并解压；或
+   - 安装 Git 后执行：`git clone https://github.com/sql434185-oss/data-charts.git`
+3. 用 VSCode 打开项目文件夹：`File` -> `Open Folder`。
+4. 创建虚拟环境（VSCode 会自动提示，也可以手动执行）：
+
+   ```bash
+   python -m venv .venv
+   ```
+
+5. 激活环境并安装依赖：
+
+   ```bash
+   # Windows
+   .venv\Scripts\activate
+
+   # macOS / Linux
+   source .venv/bin/activate
+
+   pip install -r requirements.txt
+   ```
+
+6. 把仪器导出的 Excel 放到项目文件夹（例如 `data/`），在 VSCode 终端运行：
+
+   ```bash
+   python plot_voltage.py --input "你的数据.xlsx" --label "E1 0"
+   ```
+
+7. 图片会生成在 `output/` 文件夹，直接用 VSCode 打开即可查看。
+
+如果下载或克隆 GitHub 仓库失败，通常是这台电脑无法稳定访问 GitHub，可以先把项目文件夹整个拷贝过去，再按步骤 1、3-7 操作。
+
+## 说明
+
+如需调整图表样式，修改 `plot_voltage.py` 后重新运行即可；新格式的数据文件也可以在同一个仓库中继续扩展支持。
