@@ -99,12 +99,12 @@ def load_input(path, sheet_name=None):
     return df.dropna(), detect_ylabel(value_col)
 
 
-def draw_chart(series_list, labels, ylabel, step, decimals, output):
+def draw_chart(series_list, labels, ylabel, step, decimals, height, output):
     max_len = max(len(series) for series in series_list)
     y_min = min(series.min() for series in series_list)
     y_max = max(series.max() for series in series_list)
 
-    fig, ax = plt.subplots(figsize=(9, 5.5))
+    fig, ax = plt.subplots(figsize=(9, height))
     if len(series_list) == 1:
         colors = ["black"]
     else:
@@ -179,6 +179,12 @@ def main():
         default=None,
         help="Optional decimal places for y-axis labels; default is derived from --step",
     )
+    parser.add_argument(
+        "--height",
+        type=float,
+        default=7.5,
+        help="Figure height in inches; increase it when y-axis ticks are crowded",
+    )
     args = parser.parse_args()
 
     if args.step <= 0:
@@ -214,7 +220,7 @@ def main():
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    draw_chart(series_list, labels, ylabel, args.step, decimals, output)
+    draw_chart(series_list, labels, ylabel, args.step, decimals, args.height, output)
     print(f"Y-axis step: {args.step} | decimals: {decimals}")
     print("Chart written to", output.resolve())
 
