@@ -55,6 +55,8 @@ python plot_voltage.py --input "E1 0.xlsx" "E1 1.xlsx" --label "E1 0" "E1 1"
 
 仓库内附带 `data/sample_voltage_minute.csv` 示例数据，可先跑一遍熟悉流程。
 
+横坐标按采样点数显示：每个数据点占一个位置，从 `0` 到数据总数，末尾再留一点余量。例如有 22679 个数据点时，横轴大约显示为 `0` 到 `23000`，不再是按真实时间进度。
+
 ## 在另一台电脑上运行（VSCode）
 
 1. 安装 Python 3.10 或更高版本，安装时勾选 `Add Python to PATH`。

@@ -6,7 +6,6 @@ from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import pandas as pd
@@ -41,9 +40,10 @@ def load_input(path: Path) -> pd.DataFrame:
     return df.dropna()
 
 
-def format_time_axis(ax):
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-    ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=2))
+def format_index_axis(ax, n):
+    ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=5, integer=True))
+    ticks = [t for t in ax.get_xticks() if 0 <= t <= n]
+    ax.set_xticks(ticks)
 
 
 def annotate_point(ax, x, y, text, y_offset):
@@ -68,28 +68,30 @@ def add_padding(ax, ratio=0.08):
 def draw_trend_chart(df: pd.DataFrame, output: Path, label: str):
     series = df.set_index(TIME_COL)[VOLT_COL]
     minute_mean = series.resample("60s").mean().dropna()
+    x = range(len(series))
+    mean_x = [series.index.searchsorted(ts, side="right") for ts in minute_mean.index]
 
     fig, ax = plt.subplots(figsize=(12, 5.5))
-    ax.plot(series.index, series.values, color="#4c9fb5", linewidth=0.6, alpha=0.75, label="Raw samples")
+    ax.plot(x, series.values, color="#4c9fb5", linewidth=0.6, alpha=0.75, label="Raw samples")
     ax.plot(
-        minute_mean.index,
+        mean_x,
         minute_mean.values,
         color="#c14953",
         linewidth=2.2,
         label="60s mean",
     )
 
-    annotate_point(ax, series.index[0], series.iloc[0], f"start  {series.iloc[0]:.6f} V", 10)
-    annotate_point(ax, series.index[-1], series.iloc[-1], f"end  {series.iloc[-1]:.6f} V", -16)
+    annotate_point(ax, 0, series.iloc[0], f"start  {series.iloc[0]:.6f} V", 10)
+    annotate_point(ax, len(series) - 1, series.iloc[-1], f"end  {series.iloc[-1]:.6f} V", -16)
 
-    ax.set_xlabel("Time")
+    ax.set_xlabel("Time (s)")
     ax.set_ylabel("Voltage (V)")
     ax.set_title(f"{label} - Voltage Trend")
     ax.grid(axis="y", linestyle="--", alpha=0.35)
     ax.legend(frameon=False)
-    format_time_axis(ax)
+    format_index_axis(ax, len(series))
+    ax.set_xlim(0, len(series) * 1.02)
     add_padding(ax)
-    fig.autofmt_xdate(rotation=0)
     fig.tight_layout()
     fig.savefig(output, dpi=150)
     plt.close(fig)
@@ -99,10 +101,11 @@ def draw_deviation_chart(df: pd.DataFrame, output: Path, label: str):
     series = df.set_index(TIME_COL)[VOLT_COL]
     base = series.iloc[0]
     dev_mv = (series - base) * 1000
+    x = range(len(dev_mv))
 
     fig, ax = plt.subplots(figsize=(12, 5.5))
     ax.fill_between(
-        dev_mv.index,
+        x,
         dev_mv.values,
         0,
         where=dev_mv.values <= 0,
@@ -110,20 +113,20 @@ def draw_deviation_chart(df: pd.DataFrame, output: Path, label: str):
         alpha=0.22,
         linewidth=0,
     )
-    ax.plot(dev_mv.index, dev_mv.values, color="#c14953", linewidth=1.1, label="Deviation")
+    ax.plot(x, dev_mv.values, color="#c14953", linewidth=1.1, label="Deviation")
     ax.axhline(0, color="gray", linewidth=1)
 
-    annotate_point(ax, dev_mv.index[0], dev_mv.iloc[0], "0.000 mV", 10)
-    annotate_point(ax, dev_mv.index[-1], dev_mv.iloc[-1], f"{dev_mv.iloc[-1]:.3f} mV", -16)
+    annotate_point(ax, 0, dev_mv.iloc[0], "0.000 mV", 10)
+    annotate_point(ax, len(dev_mv) - 1, dev_mv.iloc[-1], f"{dev_mv.iloc[-1]:.3f} mV", -16)
 
-    ax.set_xlabel("Time")
+    ax.set_xlabel("Time (s)")
     ax.set_ylabel("Deviation from start (mV)")
     ax.set_title(f"{label} - Voltage Change from Start")
     ax.grid(axis="y", linestyle="--", alpha=0.35)
     ax.legend(frameon=False)
-    format_time_axis(ax)
+    format_index_axis(ax, len(dev_mv))
+    ax.set_xlim(0, len(dev_mv) * 1.02)
     add_padding(ax)
-    fig.autofmt_xdate(rotation=0)
     fig.tight_layout()
     fig.savefig(output, dpi=150)
     plt.close(fig)
@@ -133,10 +136,11 @@ def draw_minute_chart(df: pd.DataFrame, output: Path, label: str):
     series = df.set_index(TIME_COL)[VOLT_COL]
     mean = series.resample("60s").mean().dropna()
     std = series.resample("60s").std().dropna()
+    mean_x = [series.index.searchsorted(ts, side="right") for ts in mean.index]
 
     fig, ax = plt.subplots(figsize=(12, 5.5))
     ax.fill_between(
-        mean.index,
+        mean_x,
         (mean - std).values,
         (mean + std).values,
         color="#4c9fb5",
@@ -144,19 +148,19 @@ def draw_minute_chart(df: pd.DataFrame, output: Path, label: str):
         linewidth=0,
         label="60s mean ± std",
     )
-    ax.plot(mean.index, mean.values, color="#2f6690", linewidth=2.4, label="60s mean")
+    ax.plot(mean_x, mean.values, color="#2f6690", linewidth=2.4, label="60s mean")
 
-    annotate_point(ax, mean.index[0], mean.iloc[0], f"{mean.iloc[0]:.6f} V", 10)
-    annotate_point(ax, mean.index[-1], mean.iloc[-1], f"{mean.iloc[-1]:.6f} V", -16)
+    annotate_point(ax, mean_x[0], mean.iloc[0], f"{mean.iloc[0]:.6f} V", 10)
+    annotate_point(ax, mean_x[-1], mean.iloc[-1], f"{mean.iloc[-1]:.6f} V", -16)
 
-    ax.set_xlabel("Time")
+    ax.set_xlabel("Time (s)")
     ax.set_ylabel("Voltage (V)")
     ax.set_title(f"{label} - One-Minute Average")
     ax.grid(axis="y", linestyle="--", alpha=0.35)
     ax.legend(frameon=False)
-    format_time_axis(ax)
+    format_index_axis(ax, len(series))
+    ax.set_xlim(0, len(series) * 1.02)
     add_padding(ax)
-    fig.autofmt_xdate(rotation=0)
     fig.tight_layout()
     fig.savefig(output, dpi=150)
     plt.close(fig)
@@ -165,15 +169,16 @@ def draw_minute_chart(df: pd.DataFrame, output: Path, label: str):
 def draw_reference_chart(df: pd.DataFrame, output: Path, label: str):
     series = df.set_index(TIME_COL)[VOLT_COL]
     pad = (series.max() - series.min()) * 0.10
+    x = range(len(series))
 
     fig, ax = plt.subplots(figsize=(4.8, 4.0))
-    ax.plot(series.index, series.values, color="black", linewidth=0.9)
+    ax.plot(x, series.values, color="black", linewidth=0.9)
     ax.set_ylim(series.min() - pad, series.max() + pad)
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.4f"))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-    ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=4))
+    format_index_axis(ax, len(series))
+    ax.set_xlim(0, len(series) * 1.02)
     ax.tick_params(labelsize=9)
-    ax.set_xlabel("Time", fontsize=9)
+    ax.set_xlabel("Time (s)", fontsize=9)
     ax.set_ylabel("Voltage (V)", fontsize=9)
     if label:
         ax.set_title(label, fontsize=10)
