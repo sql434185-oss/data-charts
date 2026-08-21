@@ -99,37 +99,44 @@ def load_input(path, sheet_name=None):
     return df.dropna(), detect_ylabel(value_col)
 
 
-def draw_chart(series_list, labels, ylabel, step, decimals, height, output):
-    max_len = max(len(series) for series in series_list)
-    y_min = min(series.min() for series in series_list)
-    y_max = max(series.max() for series in series_list)
+def sanitize_label(label):
+    safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in label)
+    return safe.strip("_") or "series"
 
-    fig, ax = plt.subplots(figsize=(9, height))
-    if len(series_list) == 1:
-        colors = ["black"]
-    else:
-        colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
-    for i, (series, label) in enumerate(zip(series_list, labels)):
-        x = range(len(series))
-        ax.plot(
-            x,
-            series.values,
-            color=colors[i % len(colors)],
-            linewidth=1.0,
-            label=label,
-        )
+def draw_single_chart(series, label, ylabel, step, precision, height, output):
+    y_min = float(series.min())
+    y_max = float(series.max())
+    n = len(series)
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+    ax.plot(range(n), series.values, color="black", linewidth=1.0, label=label)
 
     pad = max((y_max - y_min) * 0.08, 1e-6)
     ax.set_ylim(y_min - pad, y_max + pad)
-    ax.set_xlim(0, max_len * 1.02)
+    ax.set_xlim(0, n * 1.02)
     ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=5, integer=True))
-    ticks = [t for t in ax.get_xticks() if 0 <= t <= max_len]
-    ax.set_xticks(ticks)
+    xticks = [t for t in ax.get_xticks() if 0 <= t <= n]
+    ax.set_xticks(xticks)
+
+    if step is None:
+        ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=6))
+    else:
+        ax.yaxis.set_major_locator(mticker.MultipleLocator(step))
+    yticks = ax.get_yticks()
+    used_step = (
+        float(yticks[1] - yticks[0]) if len(yticks) > 1 else (y_max - y_min) / 6
+    )
+    decimals = precision if precision is not None else auto_decimals(used_step)
+    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter(f"%.{decimals}f"))
+
+    if height is None:
+        visible_ticks = [t for t in yticks if y_min - pad <= t <= y_max + pad]
+        height = max(6.0, min(16.0, 1.2 + max(len(visible_ticks) - 1, 1) * 0.55))
+    fig.set_size_inches(9, height)
+
     ax.set_xlabel("Time (s)")
     ax.set_ylabel(ylabel)
-    ax.yaxis.set_major_locator(mticker.MultipleLocator(step))
-    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter(f"%.{decimals}f"))
     ax.grid(axis="y", linestyle="--", alpha=0.35)
     ax.legend(frameon=False, fontsize=9)
     for spine in ["top", "right"]:
@@ -166,38 +173,46 @@ def main():
         action="store_true",
         help="Treat every sheet in each Excel file as a separate series",
     )
-    parser.add_argument("--output", type=Path, default=Path("output/data_chart.png"))
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("output"),
+        help="Output folder (or a PNG file when plotting a single table)",
+    )
     parser.add_argument(
         "--step",
         type=float,
-        default=0.001,
-        help="Numeric distance between y-axis ticks, e.g. 0.0005",
+        default=None,
+        help="Numeric distance between y-axis ticks; auto when omitted",
     )
     parser.add_argument(
         "--precision",
         type=int,
         default=None,
-        help="Optional decimal places for y-axis labels; default is derived from --step",
+        help="Optional decimal places for y-axis labels; auto when omitted",
     )
     parser.add_argument(
         "--height",
         type=float,
-        default=7.5,
-        help="Figure height in inches; increase it when y-axis ticks are crowded",
+        default=None,
+        help="Figure height in inches; auto-adjusted when omitted",
     )
     args = parser.parse_args()
 
-    if args.step <= 0:
+    if args.step is not None and args.step <= 0:
         parser.error("--step 必须是正数")
-    decimals = args.precision if args.precision is not None else auto_decimals(args.step)
 
     files = discover_inputs(args.input)
     if args.label and len(args.label) != len(files):
         parser.error("--label 数量必须和文件数量一致")
 
-    series_list = []
-    labels = []
-    ylabels = set()
+    output = Path(args.output)
+    if output.suffix.lower() == ".png":
+        if len(files) != 1 or args.all_sheets:
+            parser.error("--output 指定为 PNG 时只能用于单个数据表")
+        output.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        output.mkdir(parents=True, exist_ok=True)
 
     for i, file in enumerate(files):
         sheets = [None]
@@ -209,20 +224,24 @@ def main():
             if len(sheets) > 1:
                 label = f"{label} - {sheet}"
             df, ylabel = load_input(file, sheet_name=sheet)
-            series_list.append(df.set_index(TIME_COL)[VALUE_COL])
-            labels.append(label)
-            ylabels.add(ylabel)
+            series = df.set_index(TIME_COL)[VALUE_COL]
+
+            if output.suffix.lower() == ".png":
+                chart_path = output
+            else:
+                chart_path = output / f"{sanitize_label(label)}_chart.png"
+
+            draw_single_chart(
+                series,
+                label,
+                ylabel,
+                args.step,
+                args.precision,
+                args.height,
+                chart_path,
+            )
             print(f"{label}: {file} | {len(df)} samples | y-axis: {ylabel}")
-
-    if len(ylabels) > 1:
-        print("warning: 多个文件识别出的纵坐标不同:", sorted(ylabels))
-    ylabel = next(iter(ylabels)) if len(ylabels) == 1 else "Value"
-
-    output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    draw_chart(series_list, labels, ylabel, args.step, decimals, args.height, output)
-    print(f"Y-axis step: {args.step} | decimals: {decimals}")
-    print("Chart written to", output.resolve())
+            print(f"Chart written to {chart_path.resolve()}")
 
 
 if __name__ == "__main__":
