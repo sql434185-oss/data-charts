@@ -13,10 +13,10 @@ pip install -r requirements.txt
 画一个文件：
 
 ```bash
-python plot_data.py --input "8.12，E1 0.xlsx" --label "E1 0" --precision 6
+python plot_data.py --input "8.12，E1 0.xlsx" --label "E1 0" --step 0.0005
 ```
 
-`--precision` 是纵轴刻度的小数位数，例如 `6` 表示精确到 `0.000001`，能更清楚显示细微数据变化；改成 `3` 就是原来的 `0.001` 精度。
+`--step` 是纵轴相邻刻度之间的数值距离（默认 `0.001`），例如 `0.0005`、`0.0001`；数值距离越小，比例越精细，数据变化越明显。`--precision` 可以单独指定小数位数，默认会根据 `--step` 自动计算。
 
 同时画多个文件：
 
@@ -41,7 +41,7 @@ python plot_data.py --input "数据.xlsx" --all-sheets
 - 纵坐标：根据数据列名自动识别，例如 `Voltage (V)`、`Current (A)`、`Temperature (C)`
 - 图例：默认使用文件名；Excel 多表使用“文件名 - 表名”，也可以用 `--label` 指定
 - 横坐标：按采样点序号显示，从 `0` 到数据总数，末尾留一点余量
-- 精度：用 `--precision` 手动设置纵轴小数位数，精度越高越能体现数据变化
+- 精度：用 `--step` 手动设置纵轴刻度间的数值距离，用 `--precision` 可选设置小数位数
 
 ## 输出
 

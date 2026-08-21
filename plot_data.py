@@ -99,7 +99,7 @@ def load_input(path, sheet_name=None):
     return df.dropna(), detect_ylabel(value_col)
 
 
-def draw_chart(series_list, labels, ylabel, precision, output):
+def draw_chart(series_list, labels, ylabel, step, decimals, output):
     max_len = max(len(series) for series in series_list)
     y_min = min(series.min() for series in series_list)
     y_max = max(series.max() for series in series_list)
@@ -128,7 +128,8 @@ def draw_chart(series_list, labels, ylabel, precision, output):
     ax.set_xticks(ticks)
     ax.set_xlabel("Time (s)")
     ax.set_ylabel(ylabel)
-    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter(f"%.{precision}f"))
+    ax.yaxis.set_major_locator(mticker.MultipleLocator(step))
+    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter(f"%.{decimals}f"))
     ax.grid(axis="y", linestyle="--", alpha=0.35)
     ax.legend(frameon=False, fontsize=9)
     for spine in ["top", "right"]:
@@ -136,6 +137,13 @@ def draw_chart(series_list, labels, ylabel, precision, output):
     fig.tight_layout()
     fig.savefig(output, dpi=150)
     plt.close(fig)
+
+
+def auto_decimals(step):
+    text = format(step, ".12f").rstrip("0")
+    if "." in text:
+        return len(text.split(".")[1])
+    return 0
 
 
 def main():
@@ -160,12 +168,22 @@ def main():
     )
     parser.add_argument("--output", type=Path, default=Path("output/data_chart.png"))
     parser.add_argument(
+        "--step",
+        type=float,
+        default=0.001,
+        help="Numeric distance between y-axis ticks, e.g. 0.0005",
+    )
+    parser.add_argument(
         "--precision",
         type=int,
-        default=6,
-        help="Decimal places shown on the y-axis, e.g. 6 for 0.000001",
+        default=None,
+        help="Optional decimal places for y-axis labels; default is derived from --step",
     )
     args = parser.parse_args()
+
+    if args.step <= 0:
+        parser.error("--step 必须是正数")
+    decimals = args.precision if args.precision is not None else auto_decimals(args.step)
 
     files = discover_inputs(args.input)
     if args.label and len(args.label) != len(files):
@@ -196,8 +214,8 @@ def main():
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    draw_chart(series_list, labels, ylabel, args.precision, output)
-    print(f"Precision: {args.precision} decimal places")
+    draw_chart(series_list, labels, ylabel, args.step, decimals, output)
+    print(f"Y-axis step: {args.step} | decimals: {decimals}")
     print("Chart written to", output.resolve())
 
 
