@@ -99,7 +99,7 @@ def load_input(path, sheet_name=None):
     return df.dropna(), detect_ylabel(value_col)
 
 
-def draw_chart(series_list, labels, ylabel, output):
+def draw_chart(series_list, labels, ylabel, precision, output):
     max_len = max(len(series) for series in series_list)
     y_min = min(series.min() for series in series_list)
     y_max = max(series.max() for series in series_list)
@@ -128,6 +128,7 @@ def draw_chart(series_list, labels, ylabel, output):
     ax.set_xticks(ticks)
     ax.set_xlabel("Time (s)")
     ax.set_ylabel(ylabel)
+    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter(f"%.{precision}f"))
     ax.grid(axis="y", linestyle="--", alpha=0.35)
     ax.legend(frameon=False, fontsize=9)
     for spine in ["top", "right"]:
@@ -158,6 +159,12 @@ def main():
         help="Treat every sheet in each Excel file as a separate series",
     )
     parser.add_argument("--output", type=Path, default=Path("output/data_chart.png"))
+    parser.add_argument(
+        "--precision",
+        type=int,
+        default=6,
+        help="Decimal places shown on the y-axis, e.g. 6 for 0.000001",
+    )
     args = parser.parse_args()
 
     files = discover_inputs(args.input)
@@ -189,7 +196,8 @@ def main():
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    draw_chart(series_list, labels, ylabel, output)
+    draw_chart(series_list, labels, ylabel, args.precision, output)
+    print(f"Precision: {args.precision} decimal places")
     print("Chart written to", output.resolve())
 
 
